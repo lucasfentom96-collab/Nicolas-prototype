@@ -1,0 +1,57 @@
+name: Compilar Nicolas APK
+
+on:
+workflow_dispatch:
+push:
+paths:
+- '**'
+- '!*.md'
+
+permissions:
+contents: read
+
+jobs:
+build:
+runs-on: ubuntu-latest
+
+steps:
+  - name: Descargar repositorio
+    uses: actions/checkout@v4
+
+  - name: Preparar Java
+    uses: actions/setup-java@v4
+    with:
+      distribution: temurin
+      java-version: '17'
+
+  - name: Preparar proyecto
+    run: |
+      mkdir -p trabajo
+      unzip -q Nicolas_v0_1_android.zip -d trabajo
+      echo "Archivos encontrados:"
+      find trabajo -type f \( -name gradlew -o -name settings.gradle -o -name settings.gradle.kts \)
+
+  - name: Encontrar Gradle Wrapper
+    id: gradle
+    run: |
+      WRAPPER=$(find trabajo -type f -name gradlew | head -1)
+      if [ -z "$WRAPPER" ]; then
+        echo "ERROR: No se encontró gradlew dentro del ZIP."
+        echo "El proyecto necesita el Gradle Wrapper para compilar."
+        exit 1
+      fi
+      echo "wrapper=$WRAPPER" >> "$GITHUB_OUTPUT"
+
+  - name: Compilar APK
+    run: |
+      WRAPPER="${{ steps.gradle.outputs.wrapper }}"
+      cd "$(dirname "$WRAPPER")"
+      chmod +x gradlew
+      ./gradlew assembleDebug
+
+  - name: Guardar APK
+    uses: actions/upload-artifact@v4
+    with:
+      name: Nicolas-APK
+      path: trabajo/**/build/outputs/apk/debug/*.apk
+      if-no-files-found: error
