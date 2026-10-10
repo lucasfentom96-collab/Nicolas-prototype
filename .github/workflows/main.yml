@@ -1,0 +1,52 @@
+name: Compilar Nicolas APK
+
+on:
+workflow_dispatch:
+
+permissions:
+contents: read
+
+jobs:
+build:
+runs-on: ubuntu-latest
+
+steps:
+  - name: Descargar repositorio
+    uses: actions/checkout@v4
+
+  - name: Preparar Java
+    uses: actions/setup-java@v4
+    with:
+      distribution: temurin
+      java-version: '17'
+
+  - name: Extraer proyecto
+    run: |
+      mkdir proyecto
+      unzip -q Nicolas_v0_1_android.zip -d proyecto
+      echo "Contenido del ZIP:"
+      find proyecto -maxdepth 4 -type f | head -100
+
+  - name: Preparar Gradle
+    uses: gradle/actions/setup-gradle@v4
+
+  - name: Compilar APK
+    run: |
+      GRADLE_FILE=$(find proyecto -name gradlew -type f | head -1)
+      if [ -n "$GRADLE_FILE" ]; then
+        cd "$(dirname "$GRADLE_FILE")"
+        chmod +x gradlew
+        ./gradlew assembleDebug
+      else
+        echo "ERROR: El ZIP no contiene el archivo gradlew."
+        echo "Hay que revisar la estructura del proyecto."
+        exit 1
+      fi
+
+  - name: Guardar APK
+    if: success()
+    uses: actions/upload-artifact@v4
+    with:
+      name: Nicolas-APK
+      path: proyecto/**/build/outputs/apk/debug/*.apk
+      if-no-files-found: error
